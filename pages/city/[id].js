@@ -6,11 +6,12 @@ const CityPage = () => {
   const [cityData, setCityData] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false); // Pentru a verifica dacă orașul este salvat
   const router = useRouter();
   const { id } = router.query;
 
-  const geocodingAPIKey = 'API_KEY_OPEN_METEO';  // Înlocuiește cu cheia ta
-  const weatherAPIKey = 'API_KEY_OPENWEATHER';  // Înlocuiește cu cheia ta
+  const geocodingAPIKey = 'API_KEY_OPEN_METEO'; // Înlocuiește cu cheia ta
+  const weatherAPIKey = 'API_KEY_OPENWEATHER'; // Înlocuiește cu cheia ta
 
   useEffect(() => {
     if (!id) return;
@@ -29,6 +30,10 @@ const CityPage = () => {
 
         const cityInfo = cityResponse.data.results[0];
         setCityData(cityInfo);
+
+        // Verifică dacă orașul este deja în baza de date
+        const favoriteCheck = await axios.get('/api/favorites', { params: { id: cityInfo.id } });
+        setIsFavorite(favoriteCheck.data.isFavorite);
 
         // Fetch weather data
         const weatherResponse = await axios.get(`https://api.openweathermap.org/data/2.5/weather`, {
@@ -50,6 +55,25 @@ const CityPage = () => {
     fetchCityData();
   }, [id]);
 
+  const handleFavoriteToggle = async () => {
+    try {
+      if (isFavorite) {
+        await axios.delete('/api/favorites', { data: { id: cityData.id } });
+      } else {
+        await axios.post('/api/favorites', {
+          id: cityData.id,
+          name: cityData.name,
+          country: cityData.country,
+          latitude: cityData.latitude,
+          longitude: cityData.longitude,
+        });
+      }
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Error updating favorites:', error);
+    }
+  };
+
   if (loading) return <p>Loading...</p>;
 
   if (!cityData) return <p>City not found</p>;
@@ -67,6 +91,10 @@ const CityPage = () => {
           <p>Weather: {weatherData.weather[0].description}</p>
         </div>
       )}
+
+      <button onClick={handleFavoriteToggle}>
+        {isFavorite ? 'Șterge din preferate' : 'Salvează ca preferat'}
+      </button>
     </div>
   );
 };
